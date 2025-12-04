@@ -2,7 +2,7 @@
 import React, { useEffect } from 'react';
 import { useForm } from '../../hooks';
 import { Form, FormField, FormSection, FormActions } from '../ui';
-import { Lead, LeadStage, Purpose, Source, Priority } from '../../types';
+import { Lead, LeadStage, Source, Priority } from '../../types';
 import TagInput from '../common/TagInput';
 import { dropdownOptions } from '../../data/options';
 import { useAppContext } from '../../contexts/AppContext';
@@ -12,7 +12,6 @@ import { formatPhoneNumber, getClipboardText, isValidPhoneNumber } from '../../u
 type AddLeadFormData = Omit<Lead, 'id' | 'createdAt' | 'updatedAt'> & {
   name?: string;
   budget?: number;
-  segment?: Lead['segment'];
 };
 
 interface AddLeadFormProps {
@@ -25,22 +24,22 @@ const initialState: AddLeadFormData = {
   name: '',
   phone: '',
   stage: 'Init - General Enquiry' as LeadStage,
-  intent: 'Warm',
   budget: 0,
-  preferredLocation: [],
-  preferredSize: [],
   address: '',
   note: '',
-  requirementDescription: '',
-  propertyType: [],
-  purpose: '' as Purpose,
+  requirement: '',
+  type: '',
   about: '',
-  segment: 'Panipat',
   source: 'Organic Social Media' as Source,
   priority: 'General' as Priority,
-  tags: [],
-  assignedTo: [],
-  data3: '1', // Default to sync contacts
+  labels: [],
+  assignedTo: '',
+  adminId: 1,
+  isInPipeline: false,
+  leadScore: 0,
+  email: '',
+  lastNote: '',
+  customFields: {},
 };
 
 const AddLeadForm: React.FC<AddLeadFormProps> = ({
@@ -85,24 +84,12 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
 
   const handleBudgetBlur = (e: React.ChangeEvent<HTMLInputElement>) => {
     const budget = parseFloat(e.target.value);
-
-    // Auto-manage contact sync based on budget
-    if (budget < 70 && values.data3 === '1') {
-      // Auto-uncheck contact sync if budget is below 70
-      handleChange('data3', '');
-    } else if (budget >= 70 && values.data3 !== '1') {
-      // Auto-check contact sync if budget is 70 or more
-      handleChange('data3', '1');
-    }
-  };
-
-  const handleContactSyncChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleChange('data3', e.target.checked ? '1' : '');
+    handleChange('budget', budget);
   };
 
   return (
     <Form onSubmit={handleSubmit}>
-      <FormSection>
+      <FormSection title="Lead Details">
         <div className="grid grid-cols-1 gap-4">
           <FormField label="Phone" required>
             <input
@@ -138,14 +125,7 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
             />
           </FormField>
 
-          <FormField label="Segment">
-            <Dropdown
-              options={dropdownOptions.segment}
-              value={values.segment}
-              onChange={(value: string) => handleChange('segment', value)}
-              placeholder="Select segment"
-            />
-          </FormField>
+
 
           <FormField label="Source" required>
             <Dropdown
@@ -156,12 +136,12 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
             />
           </FormField>
 
-          <FormField label="Tags">
+          <FormField label="Labels">
             <TagInput
               options={options.tags}
-              value={values.tags ?? []}
-              onChange={(value: string[]) => handleChange('tags', value)}
-              placeholder="Add tags"
+              value={values.labels ?? []}
+              onChange={(value: string[]) => handleChange('labels', value)}
+              placeholder="Add labels"
             />
           </FormField>
 
@@ -175,6 +155,16 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
             />
           </FormField>
 
+          <FormField label="Requirement">
+            <textarea
+              value={values.requirement}
+              onChange={(e) => handleChange('requirement', e.target.value)}
+              className="input h-16"
+              placeholder="Describe requirements"
+              rows={2}
+            />
+          </FormField>
+
           <FormField label="Note">
             <textarea
               value={values.note}
@@ -185,18 +175,7 @@ const AddLeadForm: React.FC<AddLeadFormProps> = ({
             />
           </FormField>
 
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="contactSync"
-              checked={values.data3 === '1'}
-              onChange={handleContactSyncChange}
-              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-            />
-            <label htmlFor="contactSync" className="text-sm font-medium text-gray-700">
-              Keep updated with Contacts
-            </label>
-          </div>
+
         </div>
       </FormSection>
 

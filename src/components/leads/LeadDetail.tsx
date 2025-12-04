@@ -33,7 +33,7 @@ const LeadDetail: React.FC = () => {
   const leadId = id ? parseInt(id) : 0;
   const navigate = useNavigate();
 
-  const { getLeadById, getTodosByLeadId, updateLead, setActiveLeadId, fetchSingleLead, isLoading, options } =
+  const { getLeadById, getTodosByLeadId, updateLead, setActiveLeadId, fetchSingleLead, isLoading, options, togglePipelineStatus } =
     useAppContext();
 
   // Get lead from global state, but don't re-render when global state changes
@@ -85,11 +85,18 @@ const LeadDetail: React.FC = () => {
 
   useEffect(() => {
     if (lead) {
-      // If we are editing the same lead, only update the timestamp
-      // to prevent overwriting local changes.
+      // If we are editing the same lead, check for updates
       if (editedLead && editedLead.id === lead.id) {
-        if (editedLead.updatedAt !== lead.updatedAt) {
-          setEditedLead((prev: Lead | null) => ({ ...prev!, updatedAt: lead.updatedAt }));
+        // Sync isInPipeline and timestamp if they differ
+        if (
+          editedLead.isInPipeline !== lead.isInPipeline ||
+          editedLead.updatedAt !== lead.updatedAt
+        ) {
+          setEditedLead((prev: Lead | null) => ({
+            ...prev!,
+            isInPipeline: lead.isInPipeline,
+            updatedAt: lead.updatedAt,
+          }));
         }
       } else {
         // This is for initial load or for a new lead
@@ -240,6 +247,15 @@ const LeadDetail: React.FC = () => {
                 <h2 className="text-xl font-semibold mb-2">
                   #{editedLead.id} {editedLead.name} - {editedLead.budget} Lakh
                 </h2>
+                <button
+                  onClick={() => togglePipelineStatus(editedLead.id, !editedLead.isInPipeline)}
+                  className={`text-xs px-2 py-1 rounded-full border ${editedLead.isInPipeline
+                    ? 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200'
+                    : 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200'
+                    }`}
+                >
+                  {editedLead.isInPipeline ? 'In Pipeline' : 'Add to Pipeline'}
+                </button>
               </div>
 
               <button
@@ -397,19 +413,6 @@ const LeadDetail: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Property Type
-                    </label>
-                    <TagInput
-                      options={options.propertyType}
-                      value={editedLead.propertyType ?? []}
-                      onChange={(value) =>
-                        handleImmediateChange('propertyType', value)
-                      }
-                      placeholder="Add property types"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       Budget (in Lakhs)
                     </label>
                     <input
@@ -428,64 +431,22 @@ const LeadDetail: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Requirement Description
+                    Requirement
                   </label>
                   <textarea
-                    value={editedLead.requirementDescription || ''}
+                    value={editedLead.requirement || ''}
                     onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
                       handleInputChange(
-                        'requirementDescription',
+                        'requirement',
                         e.target.value
                       )
                     }
                     onBlur={(e: React.FocusEvent<HTMLTextAreaElement>) =>
-                      handleInputBlur('requirementDescription', e.target.value)
+                      handleInputBlur('requirement', e.target.value)
                     }
                     className="input h-24"
                     placeholder="Enter requirement details"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Preferred Location
-                  </label>
-                  <TagInput
-                    options={options.preferredLocation}
-                    value={editedLead.preferredLocation ?? []}
-                    onChange={(value) =>
-                      handleImmediateChange('preferredLocation', value)
-                    }
-                    placeholder="Add locations"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Preferred Size
-                    </label>
-                    <TagInput
-                      options={options.preferredSize}
-                      value={editedLead.preferredSize ?? []}
-                      onChange={(value) =>
-                        handleImmediateChange('preferredSize', value)
-                      }
-                      placeholder="Add sizes"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Purpose
-                    </label>
-                    <Dropdown
-                      options={dropdownOptions.purpose}
-                      value={editedLead.purpose}
-                      onChange={(value) =>
-                        handleImmediateChange('purpose', value)
-                      }
-                      placeholder="Select purpose"
-                    />
-                  </div>
                 </div>
               </div>
             )}
@@ -522,6 +483,22 @@ const LeadDetail: React.FC = () => {
                       onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleInputBlur('phone', e.target.value)}
                       className="input"
                       placeholder="Enter phone number (6-15 digits)"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={editedLead.email || ''}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        handleInputChange('email', e.target.value)
+                      }
+                      onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleInputBlur('email', e.target.value)}
+                      className="input"
+                      placeholder="Enter email address"
                     />
                   </div>
 
@@ -638,37 +615,31 @@ const LeadDetail: React.FC = () => {
               <div className="p-2 md:p-4 space-y-4 transition-all duration-300">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tags
+                    Lead Score
+                  </label>
+                  <input
+                    type="number"
+                    value={editedLead.leadScore}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      handleInputChange('leadScore', parseInt(e.target.value) || 0)
+                    }
+                    onBlur={(e: React.FocusEvent<HTMLInputElement>) =>
+                      handleInputBlur('leadScore', parseInt(e.target.value) || 0)
+                    }
+                    className="input"
+                    min="0"
+                    max="100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Labels
                   </label>
                   <TagInput
                     options={options.tags}
-                    value={editedLead.tags ?? []}
-                    onChange={(value) => handleImmediateChange('tags', value)}
-                    placeholder="Add tags"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Segment
-                  </label>
-                  <Dropdown
-                    options={dropdownOptions.segment}
-                    value={editedLead.segment}
-                    onChange={(value) =>
-                      handleImmediateChange('segment', value)
-                    }
-                    placeholder="Select segment"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Intent
-                  </label>
-                  <Dropdown
-                    options={dropdownOptions.intent}
-                    value={editedLead.intent}
-                    onChange={(value) => handleImmediateChange('intent', value)}
-                    placeholder="Select Intent"
+                    value={editedLead.labels ?? []}
+                    onChange={(value) => handleImmediateChange('labels', value)}
+                    placeholder="Add labels"
                   />
                 </div>
               </div>
@@ -694,13 +665,15 @@ const LeadDetail: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Assigned To
                   </label>
-                  <TagInput
-                    options={options.assignedTo}
-                    value={editedLead.assignedTo ?? []}
-                    onChange={(value) =>
-                      handleImmediateChange('assignedTo', value)
+                  <input
+                    type="text"
+                    value={editedLead.assignedTo || ''}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      handleInputChange('assignedTo', e.target.value)
                     }
-                    placeholder="Assign team members"
+                    onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleInputBlur('assignedTo', e.target.value)}
+                    className="input"
+                    placeholder="Assign to..."
                   />
                 </div>
 
@@ -729,55 +702,13 @@ const LeadDetail: React.FC = () => {
               <div className="p-2 md:p-4 space-y-4 transition-all duration-300">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Data 1
+                    Custom Fields (JSON)
                   </label>
-                  <input
-                    type="text"
-                    value={editedLead.data1 || ''}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('data1', e.target.value)}
-                    onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleInputBlur('data1', e.target.value)}
-                    className="input"
-                  />
+                  <div className="bg-gray-50 p-2 rounded text-xs font-mono overflow-auto max-h-40">
+                    <pre>{JSON.stringify(editedLead.customFields, null, 2)}</pre>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Data 2
-                  </label>
-                  <input
-                    type="text"
-                    value={editedLead.data2 || ''}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('data2', e.target.value)}
-                    onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleInputBlur('data2', e.target.value)}
-                    className="input"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Data 3
-                  </label>
-                  <input
-                    type="text"
-                    value={editedLead.data3 || ''}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('data3', e.target.value)}
-                    onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleInputBlur('data3', e.target.value)}
-                    className="input"
-                  />
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="contactSyncDetail"
-                    checked={editedLead.data3 === '1'}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleImmediateChange('data3', e.target.checked ? '1' : '')}
-                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                  />
-                  <label htmlFor="contactSyncDetail" className="text-sm font-medium text-gray-700">
-                    Keep updated with Contacts
-                  </label>
-                </div>
                 <div className="text-sm text-gray-600">
                   <span>Created: {formatDateTime(editedLead.createdAt)}</span>
                   <span className="mx-2">•</span>

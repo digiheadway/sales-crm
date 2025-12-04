@@ -83,35 +83,33 @@ export type Purpose = 'Self Use' | 'Investment' | 'Rental' | 'Resale' | 'Other';
 
 export interface Lead {
   id: number;
+  isInPipeline: boolean;
   name: string;
   phone: string;
   alternatePhone?: string;
   address?: string;
+  labels: string[];
   stage: LeadStage;
-  ourRating?: string;
-  budget: number;
-  preferredLocation: string[];
-  preferredSize: string[];
-  note?: string;
-  requirementDescription?: string;
-  propertyType: string[];
-  purpose: Purpose;
-  about?: string;
-  segment: Segment;
-  source: Source;
   priority: Priority;
-  nextAction?: NextAction;
-  nextActionNote?: string;
-  intent?: string;
+  requirement?: string;
+  budget: number;
+  about?: string;
+  note?: string;
   listName?: string;
-  tags: string[];
-  assignedTo: string[];
-  data1?: string;
-  data2?: string;
-  data3?: string;
+  source: Source;
+  customFields?: {
+    family?: string;
+    visited?: string;
+    [key: string]: any;
+  };
+  type: string;
+  assignedTo: string;
+  adminId: number;
+  email?: string;
+  leadScore: number;
+  lastNote?: string;
   createdAt: string;
   updatedAt: string;
-  isDeleted?: boolean;
 }
 
 export interface Todo {

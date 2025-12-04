@@ -13,71 +13,10 @@ import {
   stageOptions,
   priorityOptions,
   sourceOptions,
-  purposeOptions,
-  segmentOptions,
-  todoTypeOptions,
-  todoStatusOptions,
-  intentOptions,
-  tagOptions,
   Option,
   getOptionByApiValue,
-  getOptionByValue,
   getApiValue,
 } from "../data/options";
-import { useOptimizedDataFetching } from "../hooks/useOptimizedDataFetching";
-
-interface ApiLead {
-  id: string;
-  name: string;
-  phone: string;
-  alternative_contact_details: string | null;
-  address: string | null;
-  about_him: string | null;
-  requirement_description: string | null;
-  note: string | null;
-  budget: string;
-  preferred_area: string | null;
-  size: string | null;
-  preferred_type: string | null;
-  purpose: string | null;
-  stage: string;
-  priority: string | null;
-  next_action: string | null;
-  next_action_note: string | null;
-  intent: string | null;
-  assigned_to: string | null;
-  source: string | null;
-  list_name: string | null;
-  tags: string | null;
-  data_1: string | null;
-  data_2: string | null;
-  data_3: string | null;
-  segment: string | null;
-  created_at: string;
-  updated_at: string;
-  is_deleted: string;
-}
-
-interface ApiTask {
-  id: string;
-  lead_id: string;
-  type: string;
-  description: string | null;
-  response_note: string | null;
-  status: string;
-  timedate: string;
-  participant: string | null;
-  created_at: string;
-  updated_at: string;
-  lead: ApiLead;
-}
-
-interface ApiResponse<T> {
-  status: string;
-  data: T;
-  total?: number;
-  message?: string;
-}
 
 export interface AppOptions {
   preferredLocation: Option[];
@@ -102,6 +41,7 @@ interface AppContextType {
   ) => Promise<void>;
   updateLead: (id: number, lead: Partial<Lead>) => Promise<void>;
   deleteLead: (id: number) => void;
+  togglePipelineStatus: (id: number, isInPipeline: boolean) => Promise<void>;
   addTodo: (
     todo: Omit<Todo, "id" | "createdAt" | "updatedAt">
   ) => Promise<void>;
@@ -133,13 +73,12 @@ interface AppContextType {
     perPage?: number;
     sortOrder?: "asc" | "desc";
   }) => Promise<void>;
-  invalidateLeadsCache: () => void; // Add this new function
+  invalidateLeadsCache: () => void;
   options: AppOptions;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const API_BASE_URL = "https://prop.digiheadway.in/api/v3";
 const FETCH_API_URL = "https://digiheadway.in/back/fetch.php";
 const MODIFY_API_URL = "https://digiheadway.in/back/modify.php";
 const OPTIONS_API_URL = "https://prop.digiheadway.in/api/v3/options.php";
@@ -155,7 +94,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [options, setOptions] = useState<AppOptions>({
-    ...tagOptions,
+    preferredLocation: [],
+    preferredSize: [],
+    propertyType: [],
+    tags: [],
+    assignedTo: [],
+    participants: [],
     lists: [],
   });
 
@@ -197,7 +141,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const transformApiLeadToLead = (apiLead: any): Lead => {
-    // Handle both old and new API structures
     const id = parseInt(apiLead.id);
     const name = apiLead.name || "";
     const phone = apiLead.phone || "";
@@ -207,65 +150,50 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
     const note = apiLead.note || "";
     const budget = parseInt(apiLead.budget) || 0;
 
-    // Map stage
     let stage: any = apiLead.stage;
     if (!stageOptions.some(opt => opt.value === stage)) {
       stage = getOptionByApiValue(stageOptions, stage)?.value || "Fresh Lead";
     }
 
-    // Map priority
     let priority: any = apiLead.priority;
     if (!priorityOptions.some(opt => opt.value === priority)) {
       priority = getOptionByApiValue(priorityOptions, priority)?.value || "General";
     }
 
-    // Parse custom fields if they exist
-    let data1 = "", data2 = "", data3 = "";
+    let customFields = {};
     if (apiLead.custom_fields) {
       try {
-        const parsed = JSON.parse(apiLead.custom_fields);
-        data1 = parsed.data1 || "";
-        data2 = parsed.data2 || "";
-        data3 = parsed.data3 || "";
+        customFields = JSON.parse(apiLead.custom_fields);
       } catch (e) {
-        // If not JSON, maybe just assign to data1
-        data1 = apiLead.custom_fields;
+        // If not JSON, ignore
       }
-    } else {
-      data1 = apiLead.data_1 || "";
-      data2 = apiLead.data_2 || "";
-      data3 = apiLead.data_3 || "";
     }
 
     return {
       id,
+      isInPipeline: apiLead.is_in_pipeline == 1,
       name,
       phone,
       alternatePhone,
       address,
+      labels: apiLead.labels ? apiLead.labels.split(",") : [],
       stage,
-      ourRating: apiLead.lead_scrore?.toString() || apiLead.priority || "3",
-      budget,
-      preferredLocation: apiLead.preferred_area ? apiLead.preferred_area.split(",") : [],
-      preferredSize: apiLead.size ? apiLead.size.split(",") : [],
-      note,
-      requirementDescription: apiLead.requirement || apiLead.requirement_description || "",
-      propertyType: apiLead.type ? apiLead.type.split(",") : (apiLead.preferred_type ? apiLead.preferred_type.split(",") : []),
-      intent: getOptionByApiValue(intentOptions, apiLead.intent)?.value || "",
-      purpose: getOptionByApiValue(purposeOptions, apiLead.purpose)?.value || "Other",
-      about,
-      segment: getOptionByApiValue(segmentOptions, apiLead.segment)?.value || "C",
-      source: apiLead.source || getOptionByApiValue(sourceOptions, apiLead.source)?.value || "Other",
       priority,
-      tags: apiLead.labels ? apiLead.labels.split(",") : (apiLead.tags ? apiLead.tags.split(",") : []),
-      assignedTo: apiLead.assignd_to ? apiLead.assignd_to.split(",") : (apiLead.assigned_to ? apiLead.assigned_to.split(",") : []),
-      data1,
-      data2,
-      data3,
-      listName: apiLead.listname || apiLead.list_name || "",
+      requirement: apiLead.requirement || "",
+      budget,
+      about,
+      note,
+      listName: apiLead.listname || "",
+      source: apiLead.source || "Other",
+      customFields,
+      type: apiLead.type || "lead",
+      assignedTo: apiLead.assignd_to || "",
+      adminId: parseInt(apiLead.admin_id) || 0,
+      email: apiLead.email || "",
+      leadScore: parseInt(apiLead.lead_scrore) || 0,
+      lastNote: apiLead.last_note || "",
       createdAt: apiLead.created_at,
       updatedAt: apiLead.updated_at,
-      isDeleted: apiLead.is_deleted === "1",
     };
   };
 
@@ -293,12 +221,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
             sort_dir: sortOrder.toUpperCase(),
           });
 
-          if (type) {
-            // Note: new API only supports 'task' or 'activity' in 'type' column
-            // We might need to filter client-side or check if API supports custom type filtering
-            // For now, we won't filter by type in API call if it's not supported, or assume 'task'
-          }
-
           const response = await fetch(`${FETCH_API_URL}?${queryParams}`);
 
           if (!response.ok) {
@@ -309,14 +231,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 
           if (data.success) {
             const transformedTodos: Todo[] = data.data.map((task: any) => {
-              // Note: task.lead is not returned by default in new API unless joined.
-              // If we need lead info, we might need to fetch it separately or update API.
-              // For now assuming basic task info.
-
               return {
                 id: parseInt(task.id),
                 leadId: parseInt(task.contact_id),
-                type: task.type === 'activity' ? 'Activity' : 'Todo', // Default mapping
+                type: task.type === 'activity' ? 'Activity' : 'Todo',
                 description: task.note || "",
                 responseNote: task.response || "",
                 status: task.completed == 1 ? "Completed" : "Pending",
@@ -360,7 +278,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
         currentFilters = leadFilters,
       } = params;
 
-      // Create a more stable cache key that properly handles filter changes
       const cacheKey = JSON.stringify({
         page,
         perPage,
@@ -371,15 +288,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
       });
 
       const cacheAge = Date.now() - globalLeadsCache.current.timestamp;
-      const cacheValid = cacheAge < 2 * 60 * 1000; // 2 minutes cache
+      const cacheValid = cacheAge < 2 * 60 * 1000;
 
-      // Only use cache if parameters are exactly the same and cache is valid
       if (
         globalLeadsCache.current.data.length > 0 &&
         globalLeadsCache.current.params === cacheKey &&
         cacheValid
       ) {
-        // Return cached data immediately
         setLeads(globalLeadsCache.current.data);
         return { data: globalLeadsCache.current.data, total: globalLeadsCache.current.total || 0 };
       }
@@ -395,7 +310,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
             resource: "contacts",
             page: page.toString(),
             per_page: perPage.toString(),
-            sort_by: sortField === "created_at" ? "created_at" : sortField, // Map sort fields if needed
+            sort_by: sortField === "created_at" ? "created_at" : sortField,
             sort_dir: sortOrder.toUpperCase(),
           });
 
@@ -454,9 +369,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
               case "isInPipeline":
                 queryParams.append("is_in_pipeline", filter.value.toString());
                 break;
-
-              // Note: segment, intent, tags are not explicitly supported in the new API filters based on provided code
-              // but we can try mapping them if they become supported or if we missed something.
             }
           });
 
@@ -475,7 +387,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 
             const total = apiResponse.meta?.total || 0;
 
-            // Store in global cache with the stable cache key
             globalLeadsCache.current = {
               data: transformedLeads,
               params: cacheKey,
@@ -484,7 +395,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
             };
 
             setLeads(transformedLeads);
-            return { data: transformedLeads, total: total }; // Return both data and total
+            return { data: transformedLeads, total: total };
           } else {
             throw new Error(apiResponse.message || "Failed to fetch leads");
           }
@@ -499,12 +410,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
     },
     [leadFilters]
   );
-
-  // Only fetch todos once on mount
-  useEffect(() => {
-    fetchTodos();
-    fetchOptions();
-  }, []);
 
   const fetchOptions = useCallback(async () => {
     try {
@@ -531,44 +436,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
       }));
     } catch (err) {
       console.error("Error fetching options:", err);
-      // We don't set global error here to avoid blocking the UI if options fail
     }
   }, []);
 
-
+  useEffect(() => {
+    fetchTodos();
+    fetchOptions();
+  }, []);
 
   const addLead = async (
     lead: Omit<Lead, "id" | "createdAt" | "updatedAt">
   ) => {
     try {
       const apiLead = {
+        is_in_pipeline: lead.isInPipeline ? 1 : 0,
         name: lead.name,
         phone: lead.phone,
         alter_contact: lead.alternatePhone,
         address: lead.address,
+        labels: lead.labels.join(","),
         stage: getApiValue(stageOptions, lead.stage),
-        lead_scrore: lead.ourRating, // Map to lead_scrore
-        // intent: getApiValue(intentOptions, lead.intent), // Not in allowed_contacts
-        budget: lead.budget.toString(),
-        // preferred_area: lead.preferredLocation.join(","), // Not in allowed_contacts
-        // size: lead.preferredSize.join(","), // Not in allowed_contacts
-        note: lead.note,
-        requirement: lead.requirementDescription,
-        type: lead.propertyType.join(","),
-        // purpose: getApiValue(purposeOptions, lead.purpose), // Not in allowed_contacts
-        about: lead.about,
-        // segment: getApiValue(segmentOptions, lead.segment), // Not in allowed_contacts
-        source: getApiValue(sourceOptions, lead.source),
         priority: getApiValue(priorityOptions, lead.priority),
-        labels: lead.tags.join(","),
-        assignd_to: lead.assignedTo.join(","),
-        custom_fields: JSON.stringify({
-          data1: lead.data1,
-          data2: lead.data2,
-          data3: lead.data3
-        }),
-        admin_id: 1, // Default admin_id
+        requirement: lead.requirement,
+        budget: lead.budget.toString(),
+        about: lead.about,
+        note: lead.note,
         listname: lead.listName || "",
+        source: getApiValue(sourceOptions, lead.source),
+        custom_fields: JSON.stringify(lead.customFields || {}),
+        type: lead.type,
+        assignd_to: lead.assignedTo,
+        admin_id: 1,
+        email: lead.email,
+        lead_scrore: lead.leadScore,
+        last_note: lead.lastNote
       };
 
       const response = await fetch(`${MODIFY_API_URL}?resource=contacts`, {
@@ -582,21 +483,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
       const data = await response.json();
 
       if (data.success) {
-        const newLead = {
-          ...lead,
-          id: parseInt(data.id),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-
-
-
-        // Invalidate cache and fetch fresh data
         invalidateLeadsCache();
-
-        // Fetch fresh data
         await fetchLeads().then(result => {
-          // Update the leads state with the new data
           setLeads(result.data);
         });
         setActiveLeadId(parseInt(data.id));
@@ -638,50 +526,46 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
         id: id.toString(),
       };
 
+      if (leadUpdate.isInPipeline !== undefined) apiUpdate.is_in_pipeline = leadUpdate.isInPipeline ? 1 : 0;
       if (leadUpdate.name !== undefined) apiUpdate.name = leadUpdate.name;
       if (leadUpdate.phone !== undefined) apiUpdate.phone = leadUpdate.phone;
       if (leadUpdate.alternatePhone !== undefined)
         apiUpdate.alter_contact = leadUpdate.alternatePhone;
       if (leadUpdate.address !== undefined)
         apiUpdate.address = leadUpdate.address;
-      if (leadUpdate.about !== undefined)
-        apiUpdate.about = leadUpdate.about;
-      if (leadUpdate.requirementDescription !== undefined)
-        apiUpdate.requirement = leadUpdate.requirementDescription;
-      if (leadUpdate.note !== undefined) apiUpdate.note = leadUpdate.note;
-      if (leadUpdate.budget !== undefined)
-        apiUpdate.budget = leadUpdate.budget.toString();
-      // preferred_area not in allowed
-      // size not in allowed
-      if (leadUpdate.propertyType !== undefined)
-        apiUpdate.type = leadUpdate.propertyType.join(",");
-      // purpose not in allowed
+      if (leadUpdate.labels !== undefined)
+        apiUpdate.labels = leadUpdate.labels.join(",");
       if (leadUpdate.stage !== undefined)
         apiUpdate.stage = getApiValue(stageOptions, leadUpdate.stage);
-      // intent not in allowed
       if (leadUpdate.priority !== undefined)
         apiUpdate.priority = getApiValue(priorityOptions, leadUpdate.priority);
-      // nextAction not in allowed
-      // nextActionNote not in allowed
-      if (leadUpdate.ourRating !== undefined)
-        apiUpdate.lead_scrore = leadUpdate.ourRating;
-      if (leadUpdate.assignedTo !== undefined)
-        apiUpdate.assignd_to = leadUpdate.assignedTo.join(",");
-      if (leadUpdate.source !== undefined)
-        apiUpdate.source = getApiValue(sourceOptions, leadUpdate.source);
+      if (leadUpdate.requirement !== undefined)
+        apiUpdate.requirement = leadUpdate.requirement;
+      if (leadUpdate.budget !== undefined)
+        apiUpdate.budget = leadUpdate.budget.toString();
+      if (leadUpdate.about !== undefined)
+        apiUpdate.about = leadUpdate.about;
+      if (leadUpdate.note !== undefined) apiUpdate.note = leadUpdate.note;
       if (leadUpdate.listName !== undefined)
         apiUpdate.listname = leadUpdate.listName;
-      if (leadUpdate.tags !== undefined)
-        apiUpdate.labels = leadUpdate.tags.join(",");
-
-      if (leadUpdate.data1 !== undefined || leadUpdate.data2 !== undefined || leadUpdate.data3 !== undefined) {
+      if (leadUpdate.source !== undefined)
+        apiUpdate.source = getApiValue(sourceOptions, leadUpdate.source);
+      if (leadUpdate.customFields !== undefined) {
         apiUpdate.custom_fields = JSON.stringify({
-          data1: leadUpdate.data1 ?? currentLead.data1,
-          data2: leadUpdate.data2 ?? currentLead.data2,
-          data3: leadUpdate.data3 ?? currentLead.data3
+          ...currentLead.customFields,
+          ...leadUpdate.customFields
         });
       }
-      // segment not in allowed
+      if (leadUpdate.type !== undefined)
+        apiUpdate.type = leadUpdate.type;
+      if (leadUpdate.assignedTo !== undefined)
+        apiUpdate.assignd_to = leadUpdate.assignedTo;
+      if (leadUpdate.email !== undefined)
+        apiUpdate.email = leadUpdate.email;
+      if (leadUpdate.leadScore !== undefined)
+        apiUpdate.lead_scrore = leadUpdate.leadScore;
+      if (leadUpdate.lastNote !== undefined)
+        apiUpdate.last_note = leadUpdate.lastNote;
 
       const response = await fetch(`${MODIFY_API_URL}?resource=contacts&id=${id}`, {
         method: "PUT",
@@ -700,18 +584,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
           updatedAt: new Date().toISOString(),
         };
 
-
-
-        // Update the lead in the local state
         setLeads(leads.map((lead) => (lead.id === id ? updatedLead : lead)));
 
-        // Only invalidate cache if we're not on the lead detail page
-        // This prevents unnecessary refreshes when editing lead details
         if (activeLeadId !== id) {
           invalidateLeadsCache();
         } else {
-          // If we're on the lead detail page, invalidate cache but skip the event
-          // This updates the global cache without triggering LeadsList refresh
           invalidateLeadsCache({ skipEvent: true });
         }
 
@@ -747,6 +624,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
     } catch (err) {
       console.error("Error deleting lead:", err);
       toast.error("Failed to delete lead");
+    }
+  };
+
+  const togglePipelineStatus = async (id: number, isInPipeline: boolean) => {
+    try {
+      await updateLead(id, { isInPipeline });
+    } catch (err) {
+      console.error("Error toggling pipeline status:", err);
+      throw err;
     }
   };
 
@@ -880,12 +766,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 
   const clearLeadFilters = () => {
     setLeadFiltersState([]);
-    // Clear global cache when filters are cleared
-    globalLeadsCache.current = {
-      data: [],
-      params: null,
-      timestamp: 0
-    };
   };
 
   const clearTodoFilters = () => {
@@ -897,37 +777,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const getFilteredTodos = () => {
-    if (todoFilters.length === 0) return todos;
-
-    return todos.filter((todo) => {
-      return todoFilters.every((filter) => {
-        if (filter.field === "leadId" && activeLeadId) {
-          return todo.leadId === activeLeadId;
-        }
-
-        const fieldValue = todo[filter.field as keyof Todo];
-
-        if (Array.isArray(fieldValue) && Array.isArray(filter.value)) {
-          return filter.value.some((v) => fieldValue.includes(v));
-        }
-
-        if (Array.isArray(fieldValue) && typeof filter.value === "string") {
-          return fieldValue.includes(filter.value);
-        }
-
-        if (filter.operator === "=") {
-          return fieldValue === filter.value;
-        }
-
-        if (filter.operator === "contains" && typeof fieldValue === "string") {
-          return fieldValue
-            .toLowerCase()
-            .includes(String(filter.value).toLowerCase());
-        }
-
-        return false;
-      });
-    });
+    return todos;
   };
 
   const getLeadById = (id: number) => {
@@ -938,64 +788,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
     return todos.filter((todo) => todo.leadId === leadId);
   };
 
-  const fetchSingleLead = useCallback(
-    async (id: number) => {
-      const requestKey = createRequestKey("singleLead", id);
-      return makeRequest(requestKey, async () => {
-        setIsLoading(true);
-        setError(null);
+  const fetchSingleLead = async (id: number): Promise<Lead | null> => {
+    const existingLead = leads.find(l => l.id === id);
+    if (existingLead) return existingLead;
 
-        try {
-          const response = await fetch(`${FETCH_API_URL}?resource=contacts&id=${id}`);
-          if (!response.ok) {
-            throw new Error("Failed to fetch single lead");
-          }
-          const data = await response.json();
-          if (data.success) {
-            const transformedLead = transformApiLeadToLead(data.data);
-            setLeads((prevLeads) => {
-              const existingLeadIndex = prevLeads.findIndex(
-                (l) => l.id === transformedLead.id
-              );
-              if (existingLeadIndex >= 0) {
-                const updatedLeads = [...prevLeads];
-                updatedLeads[existingLeadIndex] = transformedLead;
-                return updatedLeads;
-              }
-              return [...prevLeads, transformedLead];
-            });
-            return transformedLead;
-          } else {
-            throw new Error(data.message || "Failed to fetch single lead");
-          }
-        } catch (err) {
-          setError(err instanceof Error ? err.message : "An error occurred");
-          console.error("Error fetching single lead:", err);
-          return null;
-        } finally {
-          setIsLoading(false);
-        }
-      });
-    },
-    []
-  );
+    try {
+      const response = await fetch(`${FETCH_API_URL}?resource=contacts&id=${id}`);
+      if (!response.ok) throw new Error("Failed to fetch lead");
+      const data = await response.json();
 
-  // Add a cache invalidation function
-  const invalidateLeadsCache = useCallback((options?: { skipEvent?: boolean }) => {
-    // Clear the global cache
+      if (data.success && data.data && data.data.length > 0) {
+        const lead = transformApiLeadToLead(data.data[0]);
+        return lead;
+      }
+      return null;
+    } catch (err) {
+      console.error("Error fetching single lead:", err);
+      return null;
+    }
+  };
+
+  const invalidateLeadsCache = (options?: { skipEvent?: boolean }) => {
     globalLeadsCache.current = {
       data: [],
-      params: '',
-      timestamp: 0,
-      total: 0
+      params: null,
+      timestamp: 0
     };
+    activeRequests.current.clear();
 
-    // Only dispatch event if not skipped
     if (!options?.skipEvent) {
-      // Dispatch a custom event to notify components to clear their local cache
-      window.dispatchEvent(new CustomEvent('leadsCacheInvalidated'));
+      window.dispatchEvent(new CustomEvent('leads-cache-invalidated'));
     }
-  }, []);
+  };
 
   const contextValue: AppContextType = {
     leads,
@@ -1008,6 +832,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
     addLead,
     updateLead,
     deleteLead,
+    togglePipelineStatus,
     addTodo,
     updateTodo,
     deleteTodo,
@@ -1025,7 +850,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
     fetchLeads,
     fetchSingleLead,
     fetchTodos,
-    invalidateLeadsCache, // Add this to the context value
+    invalidateLeadsCache,
     options,
   };
 

@@ -50,7 +50,7 @@ const LeadsList: React.FC<LeadsListProps> = ({ isInPipeline }) => {
   // Desktop filter states
   const [desktopStage, setDesktopStage] = useState('');
   const [desktopTags, setDesktopTags] = useState<string[]>([]);
-  const [desktopSegment, setDesktopSegment] = useState('');
+
 
   // Use persistent state for leads section
   // Use different keys for pipelines and leads to maintain separate states
@@ -379,11 +379,7 @@ const LeadsList: React.FC<LeadsListProps> = ({ isInPipeline }) => {
 
 
 
-  const locationLabel = (locations: string[]) => {
-    if (locations.length === 0) return "Any";
-    if (locations.length === 1) return locations[0];
-    return `${locations[0]} +${locations.length - 1}`;
-  };
+
 
   const renderSortIcon = (field: SortField) => {
     if (sortField !== field) return null;
@@ -443,17 +439,17 @@ const LeadsList: React.FC<LeadsListProps> = ({ isInPipeline }) => {
             />
           </td>
         );
-      case 'tags':
+      case 'labels':
         return (
           <td className="table-cell">
             <div className="flex items-center space-x-1 truncate">
-              {lead.tags.length > 0 ? (
+              {lead.labels.length > 0 ? (
                 <span className="text-sm text-gray-600">
-                  {lead.tags.slice(0, 2).join(', ')}
-                  {lead.tags.length > 2 && ` +${lead.tags.length - 2}`}
+                  {lead.labels.slice(0, 2).join(', ')}
+                  {lead.labels.length > 2 && ` +${lead.labels.length - 2}`}
                 </span>
               ) : (
-                <span className="text-sm text-gray-400">No tags</span>
+                <span className="text-sm text-gray-400">No labels</span>
               )}
             </div>
           </td>
@@ -501,67 +497,27 @@ const LeadsList: React.FC<LeadsListProps> = ({ isInPipeline }) => {
             />
           </td>
         );
-      case 'purpose':
-        return (
-          <td className="table-cell truncate max-w-[150px]">
-            {lead.purpose || '—'}
-          </td>
-        );
-      case 'segment':
-        return (
-          <td className="table-cell truncate max-w-[150px]">
-            {lead.segment || '—'}
-          </td>
-        );
-      case 'intent':
-        return (
-          <td className="table-cell truncate max-w-[150px]">
-            {lead.intent || '—'}
-          </td>
-        );
+
       case 'assignedTo':
         return (
           <td className="table-cell truncate max-w-[200px]">
-            {lead.assignedTo.length > 0 ? lead.assignedTo.join(', ') : '—'}
-          </td>
-        );
-      case 'listName':
-        return (
-          <td className="table-cell truncate max-w-[150px]">
-            {lead.listName || '—'}
-          </td>
-        );
-      case 'data1':
-        return (
-          <td className="table-cell truncate max-w-[150px]">
-            {lead.data1 || '—'}
+            {lead.assignedTo || '—'}
           </td>
         );
       case 'type':
         return (
           <td className="table-cell">
             <div className="flex items-center space-x-1 truncate">
-              {lead.propertyType.length > 0 ? (
-                <span className="text-sm text-gray-600">
-                  {lead.propertyType.slice(0, 2).join(', ')}
-                  {lead.propertyType.length > 2 && ` +${lead.propertyType.length - 2}`}
-                </span>
-              ) : (
-                <span className="text-sm text-gray-400">Any</span>
-              )}
+              <span className="text-sm text-gray-600">
+                {lead.type || 'Any'}
+              </span>
             </div>
-          </td>
-        );
-      case 'location':
-        return (
-          <td className="table-cell truncate max-w-[200px]">
-            {locationLabel(lead.preferredLocation)}
           </td>
         );
       case 'requirements':
         return (
           <td className="table-cell truncate max-w-[200px]">
-            {lead.requirementDescription || 'No description provided'}
+            {lead.requirement || 'No description provided'}
           </td>
         );
       case 'actions':
@@ -622,29 +578,19 @@ const LeadsList: React.FC<LeadsListProps> = ({ isInPipeline }) => {
     setDesktopTags(tags);
 
     // Update filters
-    const newFilters = leadFilters.filter(filter => filter.field !== 'tags');
+    const newFilters = leadFilters.filter(filter => filter.field !== 'labels');
     if (tags.length > 0) {
-      newFilters.push({ field: 'tags', operator: '=', value: tags });
+      newFilters.push({ field: 'labels', operator: '=', value: tags });
     }
     setLeadFilters(newFilters);
   }, [leadFilters, setLeadFilters]);
 
-  const handleDesktopSegmentChange = useCallback((value: string) => {
-    setDesktopSegment(value);
 
-    // Update filters
-    const newFilters = leadFilters.filter(filter => filter.field !== 'segment');
-    if (value) {
-      newFilters.push({ field: 'segment', operator: '=', value });
-    }
-    setLeadFilters(newFilters);
-  }, [leadFilters, setLeadFilters]);
 
   // Sync desktop filters with leadFilters
   useEffect(() => {
     const stageFilter = leadFilters.find(filter => filter.field === 'stage');
-    const tagsFilter = leadFilters.find(filter => filter.field === 'tags');
-    const segmentFilter = leadFilters.find(filter => filter.field === 'segment');
+    const tagsFilter = leadFilters.find(filter => filter.field === 'labels');
 
     if (stageFilter) {
       setDesktopStage(stageFilter.value as string);
@@ -656,12 +602,6 @@ const LeadsList: React.FC<LeadsListProps> = ({ isInPipeline }) => {
       setDesktopTags(Array.isArray(tagsFilter.value) ? tagsFilter.value : [tagsFilter.value as string]);
     } else {
       setDesktopTags([]);
-    }
-
-    if (segmentFilter) {
-      setDesktopSegment(segmentFilter.value as string);
-    } else {
-      setDesktopSegment('');
     }
   }, [leadFilters]);
 
@@ -744,14 +684,6 @@ const LeadsList: React.FC<LeadsListProps> = ({ isInPipeline }) => {
             <div className="hidden md:flex md:space-x-2 md:flex-1">
               <div className="flex-1 max-w-xs">
                 <Dropdown
-                  options={dropdownOptions.segment}
-                  value={desktopSegment}
-                  onChange={handleDesktopSegmentChange}
-                  placeholder="All Segments"
-                />
-              </div>
-              <div className="flex-1 max-w-xs">
-                <Dropdown
                   options={dropdownOptions.stage}
                   value={desktopStage}
                   onChange={handleDesktopStageChange}
@@ -763,7 +695,7 @@ const LeadsList: React.FC<LeadsListProps> = ({ isInPipeline }) => {
                   options={options.tags}
                   value={desktopTags}
                   onChange={handleDesktopTagsChange}
-                  placeholder="Select tags..."
+                  placeholder="Select labels..."
                 />
               </div>
             </div>

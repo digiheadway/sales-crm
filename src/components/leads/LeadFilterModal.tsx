@@ -19,11 +19,7 @@ const LeadFilterModal: React.FC<LeadFilterModalProps> = ({ isOpen, onClose }) =>
   const [stage, setStage] = useState('');
   const [priority, setPriority] = useState('');
   const [source, setSource] = useState('');
-  const [segment, setSegment] = useState('');
-  const [purpose, setPurpose] = useState('');
-  const [propertyTypes, setPropertyTypes] = useState<string[]>([]);
-  const [preferredSizes, setPreferredSizes] = useState<string[]>([]);
-  const [tags, setTags] = useState<string[]>([]);
+  const [labels, setLabels] = useState<string[]>([]);
   const [assignedTo, setAssignedTo] = useState<string[]>([]);
   const [budget, setBudget] = useState<{ min?: string; max?: string }>({});
 
@@ -44,20 +40,8 @@ const LeadFilterModal: React.FC<LeadFilterModalProps> = ({ isOpen, onClose }) =>
     if (source) {
       newFilters.push({ field: 'source', operator: '=', value: source });
     }
-    if (segment) {
-      newFilters.push({ field: 'segment', operator: '=', value: segment });
-    }
-    if (purpose) {
-      newFilters.push({ field: 'purpose', operator: '=', value: purpose });
-    }
-    if (propertyTypes.length > 0) {
-      newFilters.push({ field: 'propertyType', operator: '=', value: propertyTypes });
-    }
-    if (preferredSizes.length > 0) {
-      newFilters.push({ field: 'preferredSize', operator: '=', value: preferredSizes });
-    }
-    if (tags.length > 0) {
-      newFilters.push({ field: 'tags', operator: '=', value: tags });
+    if (labels.length > 0) {
+      newFilters.push({ field: 'labels', operator: '=', value: labels });
     }
     if (assignedTo.length > 0) {
       newFilters.push({ field: 'assignedTo', operator: '=', value: assignedTo });
@@ -84,11 +68,7 @@ const LeadFilterModal: React.FC<LeadFilterModalProps> = ({ isOpen, onClose }) =>
     setStage('');
     setPriority('');
     setSource('');
-    setSegment('');
-    setPurpose('');
-    setPropertyTypes([]);
-    setPreferredSizes([]);
-    setTags([]);
+    setLabels([]);
     setAssignedTo([]);
     setBudget({});
     setActiveFilters([]);
@@ -135,53 +115,12 @@ const LeadFilterModal: React.FC<LeadFilterModalProps> = ({ isOpen, onClose }) =>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Segment</label>
-            <Dropdown
-              options={dropdownOptions.segment}
-              value={segment}
-              onChange={setSegment}
-              placeholder="All Segments"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Purpose</label>
-            <Dropdown
-              options={dropdownOptions.purpose}
-              value={purpose}
-              onChange={setPurpose}
-              placeholder="All Purposes"
-            />
-          </div>
-
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Property Type</label>
-            <TagInput
-              options={options.propertyType}
-              value={propertyTypes}
-              onChange={setPropertyTypes}
-              placeholder="Select property types..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Size</label>
-            <TagInput
-              options={options.preferredSize}
-              value={preferredSizes}
-              onChange={setPreferredSizes}
-              placeholder="Select sizes..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Labels</label>
             <TagInput
               options={options.tags}
-              value={tags}
-              onChange={setTags}
-              placeholder="Select tags..."
+              value={labels}
+              onChange={setLabels}
+              placeholder="Select labels..."
             />
           </div>
 
