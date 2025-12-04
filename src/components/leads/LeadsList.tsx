@@ -27,7 +27,11 @@ import { getWhatsAppUrl } from '../../utils/phone';
 type SortField = 'id' | 'name' | 'budget' | 'stage' | 'created_at';
 
 
-const LeadsList: React.FC = () => {
+interface LeadsListProps {
+  isInPipeline?: boolean;
+}
+
+const LeadsList: React.FC<LeadsListProps> = ({ isInPipeline }) => {
   const {
     leadFilters,
     clearLeadFilters,
@@ -49,7 +53,8 @@ const LeadsList: React.FC = () => {
   const [desktopSegment, setDesktopSegment] = useState('');
 
   // Use persistent state for leads section
-  const { state, updateState, clearAll, updateFilters } = usePersistentState('leads');
+  // Use different keys for pipelines and leads to maintain separate states
+  const { state, updateState, clearAll, updateFilters } = usePersistentState(isInPipeline ? 'pipelines' : 'leads');
   const { currentPage, sortField, sortDirection, searchQuery, filters: savedFilters } = state;
 
   // Use column settings
@@ -103,14 +108,19 @@ const LeadsList: React.FC = () => {
 
       // Force refresh the data only if we're on the leads list page
       // This prevents unnecessary refreshes when on other pages
-      if (hasInitialData.current && window.location.pathname === '/leads') {
+      if (hasInitialData.current) {
+        const effectiveFilters = [...latestFiltersRef.current];
+        if (isInPipeline) {
+          effectiveFilters.push({ field: 'isInPipeline', operator: '=', value: 1 });
+        }
+
         const params = {
           page: currentPage,
           perPage: 20,
           sortField,
           sortOrder: sortDirection,
           search: searchQuery,
-          currentFilters: latestFiltersRef.current,
+          currentFilters: effectiveFilters,
         };
         fetchData(params, { forceRefresh: true });
       }
@@ -118,14 +128,19 @@ const LeadsList: React.FC = () => {
 
     const handleWindowFocus = () => {
       // Refresh data when window gains focus (user returns to tab)
-      if (hasInitialData.current && window.location.pathname === '/leads') {
+      if (hasInitialData.current) {
+        const effectiveFilters = [...latestFiltersRef.current];
+        if (isInPipeline) {
+          effectiveFilters.push({ field: 'isInPipeline', operator: '=', value: 1 });
+        }
+
         const params = {
           page: currentPage,
           perPage: 20,
           sortField,
           sortOrder: sortDirection,
           search: searchQuery,
-          currentFilters: latestFiltersRef.current,
+          currentFilters: effectiveFilters,
         };
         fetchData(params, { background: true }); // Background refresh to avoid loading state
       }
@@ -133,14 +148,19 @@ const LeadsList: React.FC = () => {
 
     const handleVisibilityChange = () => {
       // Refresh data when page becomes visible (user navigates back)
-      if (!document.hidden && hasInitialData.current && window.location.pathname === '/leads') {
+      if (!document.hidden && hasInitialData.current) {
+        const effectiveFilters = [...latestFiltersRef.current];
+        if (isInPipeline) {
+          effectiveFilters.push({ field: 'isInPipeline', operator: '=', value: 1 });
+        }
+
         const params = {
           page: currentPage,
           perPage: 20,
           sortField,
           sortOrder: sortDirection,
           search: searchQuery,
-          currentFilters: latestFiltersRef.current,
+          currentFilters: effectiveFilters,
         };
         fetchData(params, { background: true }); // Background refresh to avoid loading state
       }
@@ -197,20 +217,25 @@ const LeadsList: React.FC = () => {
       hasInitialData.current = true;
     } else if (isFiltersInitialized) {
       // If no data but filters are initialized, try to get cached data immediately
+      const effectiveFilters = [...latestFiltersRef.current];
+      if (isInPipeline) {
+        effectiveFilters.push({ field: 'isInPipeline', operator: '=', value: 1 });
+      }
+
       const params = {
         page: currentPage,
         perPage: 20,
         sortField,
         sortOrder: sortDirection,
         search: searchQuery,
-        currentFilters: latestFiltersRef.current,
+        currentFilters: effectiveFilters,
       };
 
       // This will check cache first and return cached data if available
       fetchData(params);
       hasInitialData.current = true;
     }
-  }, [leads.length, isFiltersInitialized, currentPage, sortField, sortDirection, searchQuery, fetchData]);
+  }, [leads.length, isFiltersInitialized, currentPage, sortField, sortDirection, searchQuery, fetchData, isInPipeline]);
 
   // Keep track of the latest filters
   useEffect(() => {
@@ -260,13 +285,18 @@ const LeadsList: React.FC = () => {
     const delay = leadFilters.length > 0 ? 100 : 300;
 
     const handler = setTimeout(() => {
+      const effectiveFilters = [...latestFiltersRef.current];
+      if (isInPipeline) {
+        effectiveFilters.push({ field: 'isInPipeline', operator: '=', value: 1 });
+      }
+
       const params = {
         page: currentPage,
         perPage: 20,
         sortField,
         sortOrder: sortDirection,
         search: searchQuery,
-        currentFilters: latestFiltersRef.current, // Use latest filters from ref
+        currentFilters: effectiveFilters, // Use effective filters
       };
 
       // Create a unique key for this request
@@ -330,17 +360,22 @@ const LeadsList: React.FC = () => {
     // globalLeadsCache.current = []; // This line is removed
     // Force refresh data when all filters are cleared
     if (hasInitialData.current) {
+      const effectiveFilters: any[] = [];
+      if (isInPipeline) {
+        effectiveFilters.push({ field: 'isInPipeline', operator: '=', value: 1 });
+      }
+
       const params = {
         page: currentPage,
         perPage: 20,
         sortField,
         sortOrder: sortDirection,
         searchQuery: '',
-        currentFilters: [],
+        currentFilters: effectiveFilters,
       };
       fetchData(params, { forceRefresh: true });
     }
-  }, [clearLeadFilters, clearAll, currentPage, sortField, sortDirection, fetchData]);
+  }, [clearLeadFilters, clearAll, currentPage, sortField, sortDirection, fetchData, isInPipeline]);
 
 
 
@@ -634,17 +669,22 @@ const LeadsList: React.FC = () => {
     setIsAddLeadModalOpen(false);
     // Force refresh data when modal is closed
     if (hasInitialData.current) {
+      const effectiveFilters = [...latestFiltersRef.current];
+      if (isInPipeline) {
+        effectiveFilters.push({ field: 'isInPipeline', operator: '=', value: 1 });
+      }
+
       const params = {
         page: currentPage,
         perPage: 20,
         sortField,
         sortOrder: sortDirection,
         search: searchQuery,
-        currentFilters: latestFiltersRef.current,
+        currentFilters: effectiveFilters,
       };
       fetchData(params, { forceRefresh: true });
     }
-  }, [currentPage, sortField, sortDirection, searchQuery, fetchData]);
+  }, [currentPage, sortField, sortDirection, searchQuery, fetchData, isInPipeline]);
 
   const copyPhoneNumber = async (phoneNumber: string) => {
     try {

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, CheckSquare, Calendar, X, PhoneCall, Users2, History, Search, Building2, LogOut, Clock, AlertTriangle } from 'lucide-react';
+import { Users, CheckSquare, Calendar, X, History, LogOut, Clock, AlertTriangle, GitMerge } from 'lucide-react';
+
+
 import classNames from 'classnames';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -40,9 +42,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, companyName }) => {
           const now = Date.now();
           const sessionDuration = 3 * 24 * 60 * 60 * 1000; // 3 days
           const remaining = session.timestamp + sessionDuration - now;
-          
+
           setTimeRemaining(Math.max(0, remaining));
-          
+
           // Show warning when less than 1 hour remaining
           setShowWarning(remaining < 60 * 60 * 1000);
         } catch (error) {
@@ -53,20 +55,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, companyName }) => {
 
     // Update immediately
     updateTimeRemaining();
-    
+
     // Update every minute
     const interval = setInterval(updateTimeRemaining, 60 * 1000);
-    
+
     return () => clearInterval(interval);
   }, [isAuthenticated]);
 
   const formatTimeRemaining = (ms: number): string => {
     if (ms <= 0) return 'Expired';
-    
+
     const days = Math.floor(ms / (24 * 60 * 60 * 1000));
     const hours = Math.floor((ms % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
     const minutes = Math.floor((ms % (60 * 60 * 1000)) / (60 * 1000));
-    
+
     if (days > 0) {
       return `${days}d ${hours}h`;
     } else if (hours > 0) {
@@ -79,21 +81,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, companyName }) => {
   const handleLogout = () => {
     logout();
   };
-  
-  const navItems = [
-    { name: 'Leads', icon: <Users size={18} />, path: '/leads' },
-    { name: 'Tasks', icon: <CheckSquare size={18} />, path: '/tasks' },
-    { name: 'Find Match', icon: <Search size={18} />, path: '/find-match' },
-    { name: 'Follow-ups', icon: <PhoneCall size={18} />, path: '/follow-ups' },
-    { name: 'To Schedule Visit', icon: <Building2 size={18} />, path: '/to-schedule-visit' },
-     { name: 'My Meetings', icon: <Users2 size={18} />, path: '/meetings' },
 
+  const navItems = [
+    { name: 'Pipelines', icon: <GitMerge size={18} />, path: '/pipelines' },
+    { name: 'Contacts', icon: <Users size={18} />, path: '/leads' },
+    { name: 'Tasks', icon: <CheckSquare size={18} />, path: '/tasks' },
+    { name: 'Tasks Calendar', icon: <Calendar size={18} />, path: '/calendar' },
     { name: 'Activities', icon: <History size={18} />, path: '/activities' },
-    { name: 'Calendar', icon: <Calendar size={18} />, path: '/calendar' },
   ];
 
   return (
-    <div 
+    <div
       className={classNames(
         'fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0',
         {
@@ -104,14 +102,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, companyName }) => {
     >
       <div className="flex justify-between items-center p-4 border-b">
         <h1 className="text-xl font-bold text-blue-800">{companyName}</h1>
-        <button 
+        <button
           onClick={onClose}
           className="md:hidden rounded-full p-1 hover:bg-gray-100"
         >
           <X size={20} />
         </button>
       </div>
-      
+
       <nav className="mt-4 px-2 space-y-1">
         {navItems.map((item) => (
           <Link
@@ -119,8 +117,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, companyName }) => {
             to={item.path}
             className={classNames(
               'sidebar-item',
-              location.pathname === item.path 
-                ? 'sidebar-item-active' 
+              location.pathname === item.path
+                ? 'sidebar-item-active'
                 : 'sidebar-item-inactive'
             )}
           >
@@ -129,15 +127,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, companyName }) => {
           </Link>
         ))}
       </nav>
-      
+
       <div className="absolute bottom-0 w-full p-4 border-t bg-gray-50">
         {/* Session Status */}
         {isAuthenticated && timeRemaining > 0 && (
-          <div className={`mb-3 p-2 rounded-lg text-xs ${
-            showWarning 
-              ? 'bg-orange-100 border border-orange-300 text-orange-800' 
-              : 'bg-blue-100 border border-blue-300 text-blue-800'
-          }`}>
+          <div className={`mb-3 p-2 rounded-lg text-xs ${showWarning
+            ? 'bg-orange-100 border border-orange-300 text-orange-800'
+            : 'bg-blue-100 border border-blue-300 text-blue-800'
+            }`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 {showWarning ? (
@@ -150,7 +147,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, companyName }) => {
             </div>
           </div>
         )}
-        
+
         {/* App Info and Logout */}
         <div className="flex items-center justify-between">
           <div className="flex items-center">
@@ -162,7 +159,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, companyName }) => {
               <p className="text-xs text-gray-500">v1.0.0</p>
             </div>
           </div>
-          
+
           {isAuthenticated && (
             <button
               onClick={handleLogout}

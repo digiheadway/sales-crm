@@ -21,6 +21,7 @@ const App: React.FC = () => {
             <Route path="/" element={<Layout />}>
               <Route index element={<Navigate to="/leads" replace />} />
               <Route path="leads" element={<LeadsList />} />
+              <Route path="pipelines" element={<LeadsList isInPipeline={true} />} />
               <Route path="leads/:id" element={<LeadDetail />} />
               <Route path="tasks" element={<TodosList />} />
               <Route
@@ -50,7 +51,7 @@ const App: React.FC = () => {
             </Route>
           </Routes>
         </ProtectedRoute>
-        
+
         <ToastContainer
           position="top-right"
           autoClose={2000}
